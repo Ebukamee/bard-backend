@@ -17,11 +17,8 @@ type Config struct {
 	GCSBucket          string
 	GCPProjectID       string
 	AppBaseURL         string
-	SMTPHost           string
-	SMTPPort           string
-	SMTPUser           string
-	SMTPPass           string
-	SMTPFrom           string
+	ResendAPIKey       string
+	ResendFromAddr     string
 	GeminiAPIKey       string
 }
 
@@ -38,11 +35,8 @@ func Load() (*Config, error) {
 		GCSBucket:          os.Getenv("GCS_BUCKET"),
 		GCPProjectID:       os.Getenv("GCP_PROJECT_ID"),
 		AppBaseURL:         getEnv("APP_BASE_URL", "http://localhost:3000"),
-		SMTPHost:           os.Getenv("SMTP_HOST"),
-		SMTPPort:           getEnv("SMTP_PORT", "587"),
-		SMTPUser:           os.Getenv("SMTP_USER"),
-		SMTPPass:           os.Getenv("SMTP_PASS"),
-		SMTPFrom:           os.Getenv("SMTP_FROM"),
+		ResendAPIKey:       os.Getenv("RESEND_API_KEY"),
+		ResendFromAddr:     getEnv("RESEND_FROM", "Bard <noreply@yourdomain.com>"),
 		GeminiAPIKey:       os.Getenv("GEMINI_API_KEY"),
 	}
 

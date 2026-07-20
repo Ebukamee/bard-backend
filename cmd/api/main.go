@@ -6,8 +6,11 @@ import (
 
 	"github.com/bard/bard-backend/internal/config"
 	"github.com/bard/bard-backend/internal/db"
+	"github.com/bard/bard-backend/internal/email"
 	"github.com/bard/bard-backend/internal/handler"
+	"github.com/bard/bard-backend/internal/repository"
 	"github.com/bard/bard-backend/internal/router"
+	"github.com/bard/bard-backend/internal/service"
 )
 
 func main() {
@@ -18,17 +21,29 @@ func main() {
 
 	ctx := context.Background()
 
+	// Database
 	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer pool.Close()
-
 	log.Println("Connected to database")
 
-	healthH := handler.NewHealthHandler(pool)
+	// Repositories
+	userRepo := repository.NewUserRepository(pool)
 
-	r := router.Setup(healthH)
+	// Services
+	tokenService := service.NewTokenService(cfg.JWTSecret, cfg.JWTRefreshSecret)
+	googleOAuth := service.NewGoogleOAuthService(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.AppBaseURL+"/auth/google/callback")
+	magicLinkSvc := service.NewMagicLinkService(pool)
+	mailer := email.NewMailer(cfg.ResendAPIKey, cfg.ResendFromAddr, cfg.AppBaseURL)
+
+	// Handlers
+	healthH := handler.NewHealthHandler(pool)
+	authH := handler.NewAuthHandler(tokenService, googleOAuth, magicLinkSvc, userRepo, mailer)
+
+	// Router
+	r := router.Setup(healthH, authH, tokenService)
 
 	log.Printf("Server starting on port %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
