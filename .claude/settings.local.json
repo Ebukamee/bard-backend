@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(go mod init github.com/bard/bard-backend)"
-    ]
-  }
-}
