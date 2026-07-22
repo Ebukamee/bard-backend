@@ -30,6 +30,11 @@ func main() {
 	defer pool.Close()
 	log.Println("Connected to database")
 
+	// Run migrations
+	if err := db.AutoMigrate(ctx, pool); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
 	// Repositories
 	userRepo := repository.NewUserRepository(pool)
 	transcriptionRepo := repository.NewTranscriptionRepository(pool)
