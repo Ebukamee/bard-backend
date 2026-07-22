@@ -20,6 +20,7 @@ type Config struct {
 	ResendAPIKey       string
 	ResendFromAddr     string
 	GeminiAPIKey       string
+	GroqAPIKey         string
 }
 
 func Load() (*Config, error) {
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 		ResendAPIKey:       os.Getenv("RESEND_API_KEY"),
 		ResendFromAddr:     getEnv("RESEND_FROM", "Bard <noreply@yourdomain.com>"),
 		GeminiAPIKey:       os.Getenv("GEMINI_API_KEY"),
+		GroqAPIKey:         os.Getenv("GROQ_API_KEY"),
 	}
 
 	if cfg.DatabaseURL == "" {

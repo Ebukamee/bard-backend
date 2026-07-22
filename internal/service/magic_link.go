@@ -15,7 +15,7 @@ import (
 
 const (
 	MagicLinkExpiry = 15 * time.Minute
-	TokenByteLength = 32 // 32 bytes = 64 hex characters
+	TokenByteLength = 32 
 )
 
 var (

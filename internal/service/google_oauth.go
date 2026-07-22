@@ -11,16 +11,16 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// GoogleUserInfo holds the profile data we get back from Google
+
 type GoogleUserInfo struct {
-	ID        string `json:"id"`         // Google's unique ID for this user
+	ID        string `json:"id"`         
 	Email     string `json:"email"`
 	Name      string `json:"name"`
-	AvatarURL string `json:"picture"`    // Google calls it "picture"
+	AvatarURL string `json:"picture"`    
 	Verified  bool   `json:"verified_email"`
 }
 
-// GoogleOAuthService handles the Google sign-in flow
+
 type GoogleOAuthService struct {
 	config *oauth2.Config
 }
