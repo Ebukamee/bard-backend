@@ -68,6 +68,21 @@ func AutoMigrate(ctx context.Context, pool *pgxpool.Pool) error {
 		`CREATE INDEX IF NOT EXISTS idx_transcriptions_user_id ON transcriptions(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_transcriptions_status ON transcriptions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_transcriptions_user_created ON transcriptions(user_id, created_at DESC)`,
+
+		// 000004: transcription types + filler word tracking + diary
+		`DO $$ BEGIN
+			CREATE TYPE transcription_type AS ENUM ('transcription', 'practice', 'diary');
+		EXCEPTION WHEN duplicate_object THEN NULL;
+		END $$`,
+		`ALTER TABLE transcriptions ADD COLUMN IF NOT EXISTS type transcription_type NOT NULL DEFAULT 'transcription'`,
+		`ALTER TABLE transcriptions ADD COLUMN IF NOT EXISTS filler_words TEXT`,
+		`ALTER TABLE transcriptions ADD COLUMN IF NOT EXISTS filler_word_counts JSONB`,
+		`ALTER TABLE transcriptions ADD COLUMN IF NOT EXISTS diary_date DATE`,
+		`CREATE INDEX IF NOT EXISTS idx_transcriptions_type ON transcriptions(type)`,
+		`CREATE INDEX IF NOT EXISTS idx_transcriptions_diary_date ON transcriptions(user_id, diary_date) WHERE diary_date IS NOT NULL`,
+
+		// 000005: label for transcriptions
+		`ALTER TABLE transcriptions ADD COLUMN IF NOT EXISTS label TEXT`,
 	}
 
 	for i, sql := range migrations {

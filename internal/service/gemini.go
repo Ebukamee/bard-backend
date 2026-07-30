@@ -27,15 +27,24 @@ type CleanAndSummarizeResult struct {
 	Summary           string `json:"summary"`
 }
 
+// PracticeResult holds the output of speech practice analysis.
+// Includes filler word counts so the frontend can highlight them in red.
+type PracticeResult struct {
+	CleanedTranscript string         `json:"cleaned_transcript"`
+	Summary           string         `json:"summary"`
+	FillerWordCounts  map[string]int `json:"filler_word_counts"` // e.g. {"um": 5, "like": 3}
+}
+
+// DiaryResult holds the output of diary entry processing.
+type DiaryResult struct {
+	CleanedTranscript string `json:"cleaned_transcript"`
+	Summary           string `json:"summary"`
+}
+
 // CleanAndSummarize takes a raw transcript and returns a cleaned version
-// (no filler words) and a summary.
+// (no filler words) and a summary. Used for the normal "transcription" type.
 func (s *GeminiService) CleanAndSummarize(ctx context.Context, transcript string) (*CleanAndSummarizeResult, error) {
-	reqBody := map[string]interface{}{
-		"contents": []map[string]interface{}{
-			{
-				"parts": []map[string]interface{}{
-					{
-						"text": fmt.Sprintf(`You are a transcript editor and summarizer.
+	prompt := fmt.Sprintf(`You are a transcript editor and summarizer.
 
 Given this raw transcript:
 ---
@@ -53,8 +62,90 @@ IMPORTANT:
 - The cleaned_transcript should still be readable and make grammatical sense after removing fillers
 - The summary should be a direct, plain summary of what was said — not an analysis or interpretation
 - Do NOT use phrases like "The speaker expresses" or "The speaker asserts" — just summarize the content directly
-- Return ONLY valid JSON, no markdown code blocks, no extra text`, transcript),
-					},
+- Return ONLY valid JSON, no markdown code blocks, no extra text`, transcript)
+
+	var result CleanAndSummarizeResult
+	if err := s.callGemini(ctx, prompt, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// AnalyzePractice processes a speech practice recording. It identifies and counts
+// the specific filler words the user wants to track, so the frontend can render
+// those words in red and show how many times each was said.
+func (s *GeminiService) AnalyzePractice(ctx context.Context, transcript string, fillerWords []string) (*PracticeResult, error) {
+	fillerList := strings.Join(fillerWords, ", ")
+
+	prompt := fmt.Sprintf(`You are a speech coach analyzing a practice session.
+
+The user is trying to eliminate these specific filler words from their speech: [%s]
+
+Here is the raw transcript of their practice session:
+---
+%s
+---
+
+Return a JSON response with exactly these fields:
+
+{
+  "cleaned_transcript": "The exact same transcript but with the user's specified filler words wrapped in double asterisks like **um** so they can be highlighted. Keep ALL other words exactly as spoken. Only wrap the specific filler words listed above, not other words.",
+  "summary": "A brief coaching summary: how the speaker did overall, which filler words appeared most, and a tip for improvement. Keep it encouraging and actionable. Write in second person (you).",
+  "filler_word_counts": {"word1": count, "word2": count}
+}
+
+IMPORTANT:
+- filler_word_counts must ONLY contain the specific words the user listed: [%s]
+- If a listed word was not used at all, include it with count 0
+- The cleaned_transcript must wrap EVERY occurrence of the filler words in **double asterisks**
+- Count is case-insensitive ("Um" and "um" both count)
+- Only count a word as filler when it's used as filler, not when it has real meaning (e.g. "like" in "I like pizza" is NOT filler)
+- Return ONLY valid JSON, no markdown code blocks, no extra text`, fillerList, transcript, fillerList)
+
+	var result PracticeResult
+	if err := s.callGemini(ctx, prompt, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ProcessDiary processes a daily diary audio entry. It cleans up the transcript
+// and creates a polished journal-style summary.
+func (s *GeminiService) ProcessDiary(ctx context.Context, transcript string) (*DiaryResult, error) {
+	prompt := fmt.Sprintf(`You are a personal journal assistant.
+
+The user recorded a daily diary entry by speaking. Here is the raw transcript:
+---
+%s
+---
+
+Return a JSON response with exactly these fields:
+
+{
+  "cleaned_transcript": "The same transcript but cleaned up — remove filler words (um, uh, like, you know, etc.), fix obvious grammar issues from speech-to-text, and make it read naturally. Keep the first-person voice and all the content intact.",
+  "summary": "A concise diary-style summary of what the user talked about today. Write in first person as if it's their journal entry. Capture the key events, thoughts, and feelings mentioned. Keep it warm and personal."
+}
+
+IMPORTANT:
+- Keep the user's voice and personality in both fields
+- The cleaned_transcript should feel natural, like a written version of what they said
+- The summary should read like a real diary entry, not a clinical report
+- Return ONLY valid JSON, no markdown code blocks, no extra text`, transcript)
+
+	var result DiaryResult
+	if err := s.callGemini(ctx, prompt, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// callGemini is the shared helper that sends a prompt to Gemini and unmarshals the response.
+func (s *GeminiService) callGemini(ctx context.Context, prompt string, result interface{}) error {
+	reqBody := map[string]interface{}{
+		"contents": []map[string]interface{}{
+			{
+				"parts": []map[string]interface{}{
+					{"text": prompt},
 				},
 			},
 		},
@@ -69,29 +160,29 @@ IMPORTANT:
 
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=%s", s.apiKey)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("gemini API request failed: %w", err)
+		return fmt.Errorf("gemini API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
+		return fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var geminiResp struct {
@@ -105,11 +196,11 @@ IMPORTANT:
 	}
 
 	if err := json.Unmarshal(body, &geminiResp); err != nil {
-		return nil, fmt.Errorf("failed to parse gemini response: %w", err)
+		return fmt.Errorf("failed to parse gemini response: %w", err)
 	}
 
 	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
-		return nil, fmt.Errorf("empty response from gemini")
+		return fmt.Errorf("empty response from gemini")
 	}
 
 	// Concatenate all parts (Gemini sometimes splits across multiple parts)
@@ -123,19 +214,15 @@ IMPORTANT:
 	jsonStr = strings.TrimSuffix(jsonStr, "```")
 	jsonStr = strings.TrimSpace(jsonStr)
 
-	var result CleanAndSummarizeResult
-	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		// Try to salvage by extracting fields manually
+	if err := json.Unmarshal([]byte(jsonStr), result); err != nil {
 		log.Printf("Gemini JSON parse error: %v", err)
 		log.Printf("Raw response length: %d", len(jsonStr))
 
-		// Attempt a more lenient decode using json.Decoder
 		decoder := json.NewDecoder(strings.NewReader(jsonStr))
-		decoder.DisallowUnknownFields()
-		if decErr := decoder.Decode(&result); decErr != nil {
-			return nil, fmt.Errorf("failed to parse gemini JSON: %w (raw truncated: %.500s)", err, jsonStr)
+		if decErr := decoder.Decode(result); decErr != nil {
+			return fmt.Errorf("failed to parse gemini JSON: %w (raw truncated: %.500s)", err, jsonStr)
 		}
 	}
 
-	return &result, nil
+	return nil
 }

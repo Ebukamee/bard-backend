@@ -44,11 +44,13 @@ func Setup(
 	protected.Use(middleware.AuthRequired(tokenService))
 	{
 		protected.GET("/auth/me", authH.Me)
+		protected.PATCH("/profile", authH.UpdateProfile)
 
 		// Transcription routes
 		protected.POST("/transcriptions/upload", transcriptionH.Upload)
 		protected.GET("/transcriptions", transcriptionH.List)
 		protected.GET("/transcriptions/:id", transcriptionH.Get)
+		protected.GET("/transcriptions/:id/audio", transcriptionH.Audio)
 		protected.DELETE("/transcriptions/:id", transcriptionH.Delete)
 	}
 

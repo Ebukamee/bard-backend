@@ -21,20 +21,22 @@ func NewTranscriptionRepository(pool *pgxpool.Pool) *TranscriptionRepository {
 }
 
 // Create inserts a new transcription record (status = "pending")
-func (r *TranscriptionRepository) Create(ctx context.Context, userID, audioGCSURL, audioFilename string) (*domain.Transcription, error) {
+func (r *TranscriptionRepository) Create(ctx context.Context, userID, audioGCSURL, audioFilename, transcriptionType string, label, fillerWords, diaryDate *string) (*domain.Transcription, error) {
 	query := `
-		INSERT INTO transcriptions (user_id, audio_gcs_url, audio_filename, status)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO transcriptions (user_id, audio_gcs_url, audio_filename, type, label, filler_words, diary_date, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8)
 		RETURNING id, user_id, audio_gcs_url, audio_filename, audio_duration_secs,
-		          original_transcript, cleaned_transcript, summary,
+		          type, label, original_transcript, cleaned_transcript, summary,
+		          filler_words, filler_word_counts, diary_date::text,
 		          status, error_message, processing_started_at, processing_ended_at,
 		          created_at, updated_at
 	`
 
 	var t domain.Transcription
-	err := r.pool.QueryRow(ctx, query, userID, audioGCSURL, audioFilename, domain.StatusPending).Scan(
+	err := r.pool.QueryRow(ctx, query, userID, audioGCSURL, audioFilename, transcriptionType, label, fillerWords, diaryDate, domain.StatusPending).Scan(
 		&t.ID, &t.UserID, &t.AudioGCSURL, &t.AudioFilename, &t.AudioDurationSecs,
-		&t.OriginalTranscript, &t.CleanedTranscript, &t.Summary,
+		&t.Type, &t.Label, &t.OriginalTranscript, &t.CleanedTranscript, &t.Summary,
+		&t.FillerWords, &t.FillerWordCounts, &t.DiaryDate,
 		&t.Status, &t.ErrorMessage, &t.ProcessingStartedAt, &t.ProcessingEndedAt,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
@@ -49,7 +51,8 @@ func (r *TranscriptionRepository) Create(ctx context.Context, userID, audioGCSUR
 func (r *TranscriptionRepository) GetByID(ctx context.Context, id, userID string) (*domain.Transcription, error) {
 	query := `
 		SELECT id, user_id, audio_gcs_url, audio_filename, audio_duration_secs,
-		       original_transcript, cleaned_transcript, summary,
+		       type, label, original_transcript, cleaned_transcript, summary,
+		       filler_words, filler_word_counts, diary_date::text,
 		       status, error_message, processing_started_at, processing_ended_at,
 		       created_at, updated_at
 		FROM transcriptions
@@ -59,7 +62,8 @@ func (r *TranscriptionRepository) GetByID(ctx context.Context, id, userID string
 	var t domain.Transcription
 	err := r.pool.QueryRow(ctx, query, id, userID).Scan(
 		&t.ID, &t.UserID, &t.AudioGCSURL, &t.AudioFilename, &t.AudioDurationSecs,
-		&t.OriginalTranscript, &t.CleanedTranscript, &t.Summary,
+		&t.Type, &t.Label, &t.OriginalTranscript, &t.CleanedTranscript, &t.Summary,
+		&t.FillerWords, &t.FillerWordCounts, &t.DiaryDate,
 		&t.Status, &t.ErrorMessage, &t.ProcessingStartedAt, &t.ProcessingEndedAt,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
@@ -73,20 +77,41 @@ func (r *TranscriptionRepository) GetByID(ctx context.Context, id, userID string
 	return &t, nil
 }
 
-// ListByUser returns all transcriptions for a user, newest first
-func (r *TranscriptionRepository) ListByUser(ctx context.Context, userID string, limit, offset int) ([]domain.Transcription, error) {
-	query := `
-		SELECT id, user_id, audio_gcs_url, audio_filename, audio_duration_secs,
-		       original_transcript, cleaned_transcript, summary,
-		       status, error_message, processing_started_at, processing_ended_at,
-		       created_at, updated_at
-		FROM transcriptions
-		WHERE user_id = $1
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`
+// ListByUser returns all transcriptions for a user, newest first.
+// Optionally filter by type (pass "" to get all).
+func (r *TranscriptionRepository) ListByUser(ctx context.Context, userID string, transcriptionType string, limit, offset int) ([]domain.Transcription, error) {
+	var query string
+	var args []interface{}
 
-	rows, err := r.pool.Query(ctx, query, userID, limit, offset)
+	if transcriptionType != "" {
+		query = `
+			SELECT id, user_id, audio_gcs_url, audio_filename, audio_duration_secs,
+			       type, label, original_transcript, cleaned_transcript, summary,
+			       filler_words, filler_word_counts, diary_date::text,
+			       status, error_message, processing_started_at, processing_ended_at,
+			       created_at, updated_at
+			FROM transcriptions
+			WHERE user_id = $1 AND type = $2
+			ORDER BY created_at DESC
+			LIMIT $3 OFFSET $4
+		`
+		args = []interface{}{userID, transcriptionType, limit, offset}
+	} else {
+		query = `
+			SELECT id, user_id, audio_gcs_url, audio_filename, audio_duration_secs,
+			       type, label, original_transcript, cleaned_transcript, summary,
+			       filler_words, filler_word_counts, diary_date::text,
+			       status, error_message, processing_started_at, processing_ended_at,
+			       created_at, updated_at
+			FROM transcriptions
+			WHERE user_id = $1
+			ORDER BY created_at DESC
+			LIMIT $2 OFFSET $3
+		`
+		args = []interface{}{userID, limit, offset}
+	}
+
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list transcriptions: %w", err)
 	}
@@ -97,7 +122,8 @@ func (r *TranscriptionRepository) ListByUser(ctx context.Context, userID string,
 		var t domain.Transcription
 		err := rows.Scan(
 			&t.ID, &t.UserID, &t.AudioGCSURL, &t.AudioFilename, &t.AudioDurationSecs,
-			&t.OriginalTranscript, &t.CleanedTranscript, &t.Summary,
+			&t.Type, &t.Label, &t.OriginalTranscript, &t.CleanedTranscript, &t.Summary,
+			&t.FillerWords, &t.FillerWordCounts, &t.DiaryDate,
 			&t.Status, &t.ErrorMessage, &t.ProcessingStartedAt, &t.ProcessingEndedAt,
 			&t.CreatedAt, &t.UpdatedAt,
 		)
@@ -143,6 +169,29 @@ func (r *TranscriptionRepository) UpdateResult(ctx context.Context, id string, d
 	_, err := r.pool.Exec(ctx, query, durationSecs, original, cleaned, summary, domain.StatusCompleted, id)
 	if err != nil {
 		return fmt.Errorf("failed to update transcription result: %w", err)
+	}
+
+	return nil
+}
+
+// UpdatePracticeResult saves results for speech practice mode (includes filler word counts)
+func (r *TranscriptionRepository) UpdatePracticeResult(ctx context.Context, id string, durationSecs int, original, cleaned, summary, fillerWordCounts string) error {
+	query := `
+		UPDATE transcriptions
+		SET audio_duration_secs = $1,
+		    original_transcript = $2,
+		    cleaned_transcript = $3,
+		    summary = $4,
+		    filler_word_counts = $5::jsonb,
+		    status = $6,
+		    processing_ended_at = NOW(),
+		    updated_at = NOW()
+		WHERE id = $7
+	`
+
+	_, err := r.pool.Exec(ctx, query, durationSecs, original, cleaned, summary, fillerWordCounts, domain.StatusCompleted, id)
+	if err != nil {
+		return fmt.Errorf("failed to update practice result: %w", err)
 	}
 
 	return nil

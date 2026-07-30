@@ -91,6 +91,7 @@ func (h *AuthHandler) GoogleAuth(c *gin.Context) {
 		googleUser.AvatarURL,
 	)
 	if err != nil {
+		log.Printf("Google upsert error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		return
 	}
@@ -232,6 +233,29 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	user, err := h.userRepo.GetByID(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+// UpdateProfile lets the authenticated user update their name.
+// PATCH /auth/me
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		return
+	}
+
+	user, err := h.userRepo.UpdateName(c.Request.Context(), userID, req.Name)
+	if err != nil {
+		log.Printf("Update profile error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile"})
 		return
 	}
 
