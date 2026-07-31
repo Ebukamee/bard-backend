@@ -78,6 +78,7 @@ func (h *AuthHandler) GoogleAuth(c *gin.Context) {
 	// Exchange the Google auth code for user profile info
 	googleUser, err := h.googleOAuth.ExchangeCode(c.Request.Context(), req.Code)
 	if err != nil {
+		log.Printf("Google ExchangeCode error: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "failed to authenticate with Google"})
 		return
 	}
