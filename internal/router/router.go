@@ -3,6 +3,7 @@ package router
 import (
 	"time"
 
+	"github.com/bard/bard-backend/internal/config"
 	"github.com/bard/bard-backend/internal/handler"
 	"github.com/bard/bard-backend/internal/middleware"
 	"github.com/bard/bard-backend/internal/service"
@@ -11,6 +12,7 @@ import (
 )
 
 func Setup(
+	cfg *config.Config,
 	healthH *handler.HealthHandler,
 	authH *handler.AuthHandler,
 	transcriptionH *handler.TranscriptionHandler,
@@ -20,7 +22,7 @@ func Setup(
 
 	// CORS — allow frontend origins
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowOrigins:     cfg.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

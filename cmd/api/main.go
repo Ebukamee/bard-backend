@@ -63,7 +63,7 @@ func main() {
 	transcriptionH := handler.NewTranscriptionHandler(transcriptionRepo, storageSvc, processor)
 
 	// Router
-	r := router.Setup(healthH, authH, transcriptionH, tokenService)
+	r := router.Setup(cfg, healthH, authH, transcriptionH, tokenService)
 
 	log.Printf("Server starting on port %s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

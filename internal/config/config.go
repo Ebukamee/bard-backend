@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -21,6 +22,7 @@ type Config struct {
 	ResendFromAddr     string
 	GeminiAPIKey       string
 	GroqAPIKey         string
+	AllowedOrigins     []string
 }
 
 func Load() (*Config, error) {
@@ -40,6 +42,7 @@ func Load() (*Config, error) {
 		ResendFromAddr:     getEnv("RESEND_FROM", "Bard <noreply@yourdomain.com>"),
 		GeminiAPIKey:       os.Getenv("GEMINI_API_KEY"),
 		GroqAPIKey:         os.Getenv("GROQ_API_KEY"),
+		AllowedOrigins:     parseOrigins(getEnv("ALLOWED_ORIGINS", "http://localhost:3000")),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -53,6 +56,16 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func parseOrigins(s string) []string {
+	var origins []string
+	for _, o := range strings.Split(s, ",") {
+		if t := strings.TrimSpace(o); t != "" {
+			origins = append(origins, t)
+		}
+	}
+	return origins
 }
 
 func getEnv(key, fallback string) string {
