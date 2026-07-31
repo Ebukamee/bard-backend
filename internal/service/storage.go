@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"log"
+
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/google/uuid"
@@ -52,15 +54,31 @@ func (s *StorageService) Upload(file io.Reader, originalFilename string) (cloudi
 	}
 	dst.Close()
 
+	// Open the temp file for Cloudinary upload (pass *os.File, not path string,
+	// because the SDK misinterprets Windows paths as URLs)
+	uploadFile, err := os.Open(tmpPath)
+	if err != nil {
+		os.Remove(tmpPath)
+		return "", "", fmt.Errorf("failed to open temp file for upload: %w", err)
+	}
+	defer uploadFile.Close()
+
 	// Upload to Cloudinary
 	ctx := context.Background()
-	resp, err := s.cld.Upload.Upload(ctx, tmpPath, uploader.UploadParams{
+	resp, err := s.cld.Upload.Upload(ctx, uploadFile, uploader.UploadParams{
 		PublicID:     "bard-audio/" + uniqueName,
 		ResourceType: "video", // Cloudinary uses "video" for audio files
 	})
 	if err != nil {
 		os.Remove(tmpPath)
 		return "", "", fmt.Errorf("cloudinary upload failed: %w", err)
+	}
+
+	log.Printf("Cloudinary upload response: SecureURL=%s, Error=%v", resp.SecureURL, resp.Error)
+
+	if resp.SecureURL == "" {
+		os.Remove(tmpPath)
+		return "", "", fmt.Errorf("cloudinary returned empty URL, response error: %v", resp.Error)
 	}
 
 	return resp.SecureURL, tmpPath, nil
