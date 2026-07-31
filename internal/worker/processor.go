@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/bard/bard-backend/internal/domain"
@@ -64,6 +65,13 @@ func (p *Processor) Start(ctx context.Context) {
 // processJob routes the job to the right handler based on type.
 func (p *Processor) processJob(ctx context.Context, job Job) {
 	log.Printf("Processing %s job %s", job.Type, job.TranscriptionID)
+
+	// Clean up the temp audio file after processing (Cloudinary already has it)
+	defer func() {
+		if err := os.Remove(job.AudioFilePath); err != nil && !os.IsNotExist(err) {
+			log.Printf("Warning: could not remove temp audio file %s: %v", job.AudioFilePath, err)
+		}
+	}()
 
 	switch job.Type {
 	case domain.TypePractice:

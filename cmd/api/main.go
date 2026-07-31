@@ -45,7 +45,7 @@ func main() {
 	magicLinkSvc := service.NewMagicLinkService(pool)
 	mailer := email.NewMailer(cfg.ResendAPIKey, cfg.ResendFromAddr, cfg.AppBaseURL)
 
-	storageSvc, err := service.NewStorageService("uploads")
+	storageSvc, err := service.NewStorageService(cfg.CloudinaryURL)
 	if err != nil {
 		log.Fatalf("Failed to create storage service: %v", err)
 	}

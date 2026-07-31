@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -101,8 +102,8 @@ func (h *TranscriptionHandler) Upload(c *gin.Context) {
 		label = &l
 	}
 
-	// Save the file to storage
-	storagePath, err := h.storage.Upload(file, header.Filename)
+	// Save the file to Cloudinary + write temp copy for Whisper
+	cloudinaryURL, localTempPath, err := h.storage.Upload(file, header.Filename)
 	if err != nil {
 		log.Printf("Storage upload error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file"})
@@ -113,7 +114,7 @@ func (h *TranscriptionHandler) Upload(c *gin.Context) {
 	transcription, err := h.transcriptionRepo.Create(
 		c.Request.Context(),
 		userID,
-		storagePath,
+		cloudinaryURL,
 		header.Filename,
 		transcriptionType,
 		label,
@@ -122,15 +123,16 @@ func (h *TranscriptionHandler) Upload(c *gin.Context) {
 	)
 	if err != nil {
 		log.Printf("Create transcription error: %v", err)
-		_ = h.storage.Delete(storagePath)
+		_ = h.storage.Delete(cloudinaryURL)
+		os.Remove(localTempPath)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create transcription"})
 		return
 	}
 
-	// Submit the job for background processing
+	// Submit the job for background processing (worker will clean up temp file)
 	h.processor.Submit(worker.Job{
 		TranscriptionID: transcription.ID,
-		AudioFilePath:   storagePath,
+		AudioFilePath:   localTempPath,
 		Type:            transcriptionType,
 		FillerWords:     fillerWordsList,
 	})
@@ -212,7 +214,7 @@ func (h *TranscriptionHandler) Audio(c *gin.Context) {
 		return
 	}
 
-	c.File(transcription.AudioGCSURL)
+	c.Redirect(http.StatusTemporaryRedirect, transcription.AudioGCSURL)
 }
 
 // Delete removes a transcription and its audio file.

@@ -32,8 +32,10 @@ var magicLinkTmpl = template.Must(template.New("magic-link").Parse(`<!DOCTYPE ht
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign in to Bard</title>
+  <link href="https://fonts.cdnfonts.com/css/karu" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap" rel="stylesheet" />
 </head>
-<body style="margin: 0; padding: 0; background-color: #040404; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: #040404; font-family: 'Karu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #040404; padding: 40px 20px;">
     <tr>
       <td align="center">
@@ -42,7 +44,7 @@ var magicLinkTmpl = template.Must(template.New("magic-link").Parse(`<!DOCTYPE ht
           <!-- Logo -->
           <tr>
             <td align="center" style="padding-bottom: 32px;">
-              <img src="{{.BaseURL}}/logo-email.png" alt="Bard" width="88" height="34" style="display: block;" />
+              <span style="font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: 2px; text-transform: uppercase;">BARD</span>
             </td>
           </tr>
 
@@ -51,7 +53,7 @@ var magicLinkTmpl = template.Must(template.New("magic-link").Parse(`<!DOCTYPE ht
             <td style="background-color: #161616; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); padding: 40px 36px;">
 
               <!-- Heading -->
-              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #ffffff; text-align: center;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #ffffff; text-align: center; font-family: 'Karu', 'Space Grotesk', sans-serif;">
                 Sign in to Bard
               </h1>
               <p style="margin: 0 0 32px; font-size: 14px; color: rgba(255,255,255,0.4); text-align: center; line-height: 1.5;">

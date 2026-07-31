@@ -15,8 +15,7 @@ type Config struct {
 	JWTRefreshSecret   string
 	GoogleClientID     string
 	GoogleClientSecret string
-	GCSBucket          string
-	GCPProjectID       string
+	CloudinaryURL      string
 	AppBaseURL         string
 	ResendAPIKey       string
 	ResendFromAddr     string
@@ -35,8 +34,7 @@ func Load() (*Config, error) {
 		JWTRefreshSecret:   os.Getenv("JWT_REFRESH_SECRET"),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		GCSBucket:          os.Getenv("GCS_BUCKET"),
-		GCPProjectID:       os.Getenv("GCP_PROJECT_ID"),
+		CloudinaryURL:      os.Getenv("CLOUDINARY_URL"),
 		AppBaseURL:         getEnv("APP_BASE_URL", "http://localhost:3000"),
 		ResendAPIKey:       os.Getenv("RESEND_API_KEY"),
 		ResendFromAddr:     getEnv("RESEND_FROM", "Bard <noreply@yourdomain.com>"),
