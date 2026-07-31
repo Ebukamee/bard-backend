@@ -36,6 +36,7 @@ func Setup(
 	auth := r.Group("/auth")
 	{
 		auth.POST("/google", authH.GoogleAuth)
+		
 		auth.POST("/magic-link/request", authH.RequestMagicLink)
 		auth.POST("/magic-link/verify", authH.VerifyMagicLink)
 		auth.POST("/refresh", authH.RefreshToken)

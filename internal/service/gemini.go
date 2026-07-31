@@ -122,14 +122,17 @@ The user recorded a daily diary entry by speaking. Here is the raw transcript:
 Return a JSON response with exactly these fields:
 
 {
-  "cleaned_transcript": "The same transcript but cleaned up — remove filler words (um, uh, like, you know, etc.), fix obvious grammar issues from speech-to-text, and make it read naturally. Keep the first-person voice and all the content intact.",
-  "summary": "A concise diary-style summary of what the user talked about today. Write in first person as if it's their journal entry. Capture the key events, thoughts, and feelings mentioned. Keep it warm and personal."
+  "cleaned_transcript": "A cleaned-up, well-structured version of what the user said. Reorganize the content CHRONOLOGICALLY — if the user mentions something later in the recording that happened earlier in the day, move it to its correct place in the timeline. Remove filler words (um, uh, like, you know, etc.), fix grammar issues from speech-to-text, group related topics together, and make it read naturally. Keep the first-person voice and all the content intact.",
+  "summary": "A concise, structured diary-style summary of the user's day. Write in first person as if it's their journal entry. Organize by time of day or topic — whichever flows better. Capture key events, thoughts, and feelings. Keep it warm and personal."
 }
 
 IMPORTANT:
+- CHRONOLOGICAL ORDER: If the user says "oh and this morning I also..." halfway through talking about their evening, put that morning event in the correct chronological spot
+- GROUP related topics together — don't scatter the same subject across multiple paragraphs
 - Keep the user's voice and personality in both fields
-- The cleaned_transcript should feel natural, like a written version of what they said
-- The summary should read like a real diary entry, not a clinical report
+- The cleaned_transcript should feel natural, like a well-written version of what they said, not just a direct transcription
+- The summary should read like a polished diary entry, not a clinical report
+- Use paragraph breaks to separate different parts of the day or different topics
 - Return ONLY valid JSON, no markdown code blocks, no extra text`, transcript)
 
 	var result DiaryResult
